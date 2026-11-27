@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smellyland test room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+/* VOICE  playful hand-made test level
+   IDEA   a paper-cutout diorama of a foggy river crossing
+   PICTURE the 3D room itself fills the screen
+   COLOUR fog grey-green, koala grey, red health, green hunger
+   TYPE   Patrick Hand, close to the hand lettering; LAYOUT HUD top-left, counters top-right, paws bottom */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfd3d1;font:18px/1.3 'Patrick Hand',system-ui,sans-serif;color:#222;-webkit-user-select:none;user-select:none}
+#game{position:fixed;inset:0;touch-action:none}#game canvas{display:block;width:100%;height:100%}
+#game.stun{animation:wob .25s infinite alternate}
+@keyframes wob{from{transform:rotate(-1.2deg) scale(1.03)}to{transform:rotate(1.2deg) scale(1.03)}}
+.ov{position:fixed;inset:0;pointer-events:none}
+#fog{background:url(img/fog-dense.png) center top/100% 100% no-repeat;opacity:.2}
+#paws{position:fixed;left:0;bottom:0;width:100%;pointer-events:none;transition:transform .15s}
+.lid{position:fixed;left:0;right:0;height:0;background:#111;pointer-events:none}
+#lidT{top:0}#lidB{bottom:0}
+#hud{position:fixed;top:12px;left:12px;display:flex;gap:10px;align-items:center}
+#avatar{width:92px;height:92px;border:0;padding:0;background:none;cursor:pointer}
+#avatar img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 3px #0005)}
+.bars{display:grid;gap:6px}
+.bar{display:flex;align-items:center;gap:8px;color:#fff;text-shadow:0 1px 2px #000a}
+.bar span{width:58px}
+.bar i{display:block;width:clamp(110px,22vw,260px);height:16px;border-radius:9px;background:#0005;overflow:hidden}
+.bar b{display:block;height:100%;width:100%;background:#b3201c;border-radius:9px;transition:width .2s}
+.bar i.g b{background:#3f8f2a}
+.bar em{font-style:normal;font-size:15px;opacity:.85}
+#count{position:fixed;top:14px;right:14px;display:grid;gap:6px;color:#fff;text-shadow:0 1px 2px #000a;font-size:22px}
+#count span{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+#count img{height:26px}
+#hint{position:fixed;left:50%;bottom:24%;transform:translateX(-50%);background:#fffe;padding:6px 16px;border-radius:20px;font-size:20px;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none}
+#reveal{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.8);background:#fffe;border-radius:18px;padding:14px 22px;text-align:center;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;font-size:22px}
+#reveal.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#reveal img{height:70px;display:block;margin:0 auto 4px}
+#keys{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);color:#fff;font-size:15px;text-shadow:0 1px 2px #000;white-space:nowrap;opacity:.9}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0006;padding:16px;z-index:5}
+.modal.on{display:flex}
+.card{background:#fff;border-radius:18px;padding:22px 24px;max-width:min(760px,96vw);text-align:center;box-shadow:0 10px 30px #0006}
+.card img.full{width:100%;height:auto;display:block}
+.card p{margin:10px 0}
+.btn{font:inherit;font-size:20px;border:2px solid #222;background:#fff;border-radius:24px;padding:8px 22px;margin:8px 4px 0;cursor:pointer;min-height:44px}
+.btn:hover,.btn:focus-visible{background:#e8f0e2;outline:none}
+.small{font-size:15px;color:#555}
+#start .card{background:#000;color:#fff}#start .small{color:#bbb}#start .btn{background:#000;color:#fff;border-color:#fff}#start .btn:hover,#start .btn:focus-visible{background:#333}
+#pad{position:fixed;left:14px;bottom:70px;display:none;grid-template-columns:repeat(3,56px);gap:6px}
+#pad button,#acts button{width:56px;height:56px;border-radius:14px;border:0;background:#fffc;font:inherit;font-size:22px}
+#acts{position:fixed;right:14px;bottom:70px;display:none;gap:8px}
+#acts button{width:auto;padding:0 14px}
+@media (pointer:coarse){#pad{display:grid}#acts{display:flex}#reveal{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.8);background:#fffe;border-radius:18px;padding:14px 22px;text-align:center;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;font-size:22px}
+#reveal.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#reveal img{height:70px;display:block;margin:0 auto 4px}
+#keys{display:none}}
+@media (max-width:600px){#avatar{width:64px;height:64px}.bar span{width:46px;font-size:15px}#count{font-size:18px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="fog" class="ov"></div>
+<img id="paws" src="img/paws.png" alt="">
+<div id="lidT" class="lid"></div><div id="lidB" class="lid"></div>
+
+<div id="hud">
+  <button id="avatar" aria-label="Koala info"><img src="img/avatar.png" alt=""></button>
+  <div class="bars">
+    <div class="bar"><span>Health</span><i><b id="hp"></b></i><em>immune to fog</em></div>
+    <div class="bar"><span>Hunger</span><i class="g"><b id="hu"></b></i></div>
+  </div>
+</div>
+<div id="count">
+  <span><img src="img/stone.png" alt="Stones"><b id="st">0</b>/5</span>
+  <span><img src="img/leaf-icon.png" alt="Leaves"><b id="lv">10</b></span>
+</div>
+<div id="hint"></div>
+<div id="reveal"><img src="img/stone.png" alt=""><span>Just an ordinary stone</span></div>
+<div id="keys">↑ ↓ walk · ← → turn · drag to look · click to open / pick up · W eat a leaf · Space climb</div>
+
+<div id="pad">
+  <span></span><button data-k="ArrowUp" aria-label="Forward">↑</button><span></span>
+  <button data-k="ArrowLeft" aria-label="Turn left">←</button><button data-k="ArrowDown" aria-label="Back">↓</button><button data-k="ArrowRight" aria-label="Turn right">→</button>
+</div>
+<div id="acts"><button id="bEat">Eat 🍃</button><button id="bClimb">Climb</button></div>
+
+<div id="start" class="modal on"><div class="card">
+  <img class="full" src="img/title-smellyland.png" alt="Smellyland. Your home ground! The fog can't hurt you. Climb the tree.">
+  <p class="small">Test room · koala only · find all 5 stones</p>
+  <button id="go" class="btn" disabled>Loading…</button>
+</div></div>
+
+<div id="panel" class="modal"><div class="card">
+  <img class="full" src="img/panel-koala.png" alt="Koala. Strengths: immune to poison gas, carries 10 leaves. Weakness: slowest walker, gets sleepy when hungry. Controls: arrows walk, click opens boxes and picks up stones, open your mouth wide to eat a leaf and stay awake for 15 s.">
+  <p><b>In this room:</b> Your home ground! The fog can't hurt you. Climb the tree by the bridge.</p>
+  <p class="small">The mouth gesture needs the camera. In this test, press <b>W</b> to eat.</p>
+  <button class="btn" data-close>Back to game</button>
+</div></div>
+
+<div id="memory" class="modal"><div class="card">
+  <img src="img/stone-special.png" alt="" style="width:140px">
+  <p style="font-size:26px">Memory fragment found!</p>
+  <p class="small">The memory drawing (M1 – M6) will flash here in the real game.</p>
+  <button class="btn" data-close>Continue</button>
+</div></div>
+
+<div id="win" class="modal"><div class="card">
+  <p style="font-size:32px">Room clear!</p>
+  <p>All 5 stones found.</p>
+  <button id="again" class="btn">Play again</button>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+const C = {
+  eye: 1.0, speed: 1.6, turn: 1.9, reach: 3.2,
+  hungerMax: 60, hungerStart: 60, leafGain: 15, stun: 1, leavesStart: 10,
+  sleepyWalk: 3, sleepyClose: 1.5, canopyLeaves: 4, treeLeaves: 14, groundLeaves: 16, stones: 5, climbHeight: 3.6, climbTime: 1.2
+};
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const keys = {};
+let paused = true, stones = 0, leaves = C.leavesStart, hunger = C.hungerStart;
+let fogLevel = 0.3, hintTimer = 0, winPending = false;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+$('game').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xcfd3d1);
+scene.fog = new THREE.Fog(0xc9cfcc, 6, 38);
+const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
+camera.rotation.order = 'YXZ';
+const P = { x: 0, z: 6, yaw: 0, pitch: 0, y: C.eye, mode: 'walk', anim: 0, stun: 0, gain: 0, walkT: 0, closeT: 0, phase: 0 };
+function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+const names = ['sky', 'wall', 'box-closed', 'box-open', 'fog-light', 'grass', 'leaf-icon', 'leaf-tree', 'planks', 'plant1', 'plant2', 'plant3', 'rail', 'rock-big', 'stone', 'tree1', 'tree2', 'water'];
+const T = {};
+const mgr = new THREE.LoadingManager();
+const loader = new THREE.TextureLoader(mgr);
+const SRC = window.INLINE_IMG || {};
+names.forEach(n => { T[n] = loader.load(SRC[n] || 'img/' + n + '.png'); T[n].encoding = THREE.sRGBEncoding; });
+
+const targets = [], obst = [], fogs = [], leafSprites = [], grass = [];
+let water, TREE;
+
+function tile(n, rx, ry, rot) {
+  const t = T[n].clone(); t.needsUpdate = true; t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = (n === 'grass' || n === 'water' || n === 'sky') ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  if (rot) { t.center.set(0.5, 0.5); t.rotation = rot; }
+  return t;
+}
+function plane(w, h, tex, x, y, z, o = {}) {
+  const m = new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.tr, alphaTest: o.tr ? 0.05 : 0, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, fog: o.fog !== false });
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+  g.position.set(x, y, z);
+  if (o.flat) g.rotation.x = -Math.PI / 2;
+  if (o.ry) g.rotation.y = o.ry;
+  scene.add(g); return g;
+}
+function sprite(tex, h, x, y, z, flip, o = {}) {
+  const m = new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: o.at ?? 0.08, depthWrite: o.dw ?? true, opacity: o.op ?? 1 });
+  const s = new THREE.Sprite(m);
+  const a = tex.image.width / tex.image.height;
+  s.scale.set(h * a * (flip ? -1 : 1), h, 1);
+  s.center.set(0.5, 0);
+  s.position.set(x, y, z);
+  scene.add(s); return s;
+}
+function free(x, z, d) { return obst.every(o => Math.hypot(o.x - x, o.z - z) > d); }
+
+function build() {
+  // ground, water, bridge
+  plane(90, 16, tile('grass', 12, 2.2), 0, 0, 8, { flat: 1 });
+  plane(90, 40, tile('grass', 12, 5.5), 0, 0, -44, { flat: 1 });
+  water = plane(90, 24, tile('water', 14, 4), 0, -0.7, -12, { flat: 1 });
+  // stone walls along both banks, facing the water
+  plane(90, 0.76, tile('wall', 30, 1), 0, -0.32, 0, { ry: Math.PI });
+  plane(90, 0.76, tile('wall', 30, 1), 0, -0.32, -24);
+  plane(2.2, 25.2, tile('planks', 1, 17), 0, 0.08, -12, { flat: 1 });
+  [-1.1, 1.1].forEach(sx => {
+    [0.95, 0.55].forEach(h => plane(25.2, 0.07, tile('rail', 8, 1), sx, h, -12, { ry: Math.PI / 2, ds: 1, tr: 1 }));
+    for (let z = 0.4; z >= -24.4; z -= 2.52) plane(0.08, 1.0, tile('rail', 1, 1, Math.PI / 2), sx, 0.5, z, { ds: 1, tr: 1 });
+  });
+  // sky on four sides
+  [[0, -64, 0], [0, 30, Math.PI], [-46, -17, Math.PI / 2], [46, -17, -Math.PI / 2]]
+    .forEach(([x, z, r]) => plane(140, 40, tile('sky', 4, 1.2), x, 13, z, { ry: r, fog: false }));
+
+  // climbable tree by the bridge
+  TREE = { x: -2.8, z: 1.4 };
+  const ct = sprite(T.tree1, 7, TREE.x, 0, TREE.z);
+  ct.userData = { type: 'tree' }; targets.push(ct); obst.push({ x: TREE.x, z: TREE.z, r: 0.5 });
+
+  // boxes: start bank, bridge middle, tree canopy, far bank x3
+  const boxSlots = [[5.5, 0, 4.5], [0, 0.08, -12], [-2.2, 3.9, 1.0], [-6, 0, -28], [5, 0, -31], [-2, 0, -37.5]];
+  const spotSlots = [[2.5, -0.3, -8], [-3.0, -0.27, -17], [-8, 0, 5], [12, 0, 3], [8, 0, -27], [-10, 0, -34], [-14, 0, -29], [3, 0, -41], [10, 0, -38]];
+  const boxes = boxSlots.map(p => {
+    const s = sprite(T['box-closed'], 0.75, ...p);
+    s.userData = { type: 'box', open: false, stone: null };
+    targets.push(s);
+    if (p[1] < 1) obst.push({ x: p[0], z: p[2], r: 0.45 });
+    return s;
+  });
+  // rocks in the stream (stones can sit on top)
+  sprite(T['rock-big'], 0.55, 2.7, -0.72, -8);
+  sprite(T['rock-big'], 0.6, -3.2, -0.72, -17, true);
+  spotSlots.forEach(p => obst.push({ x: p[0], z: p[2], r: 0.3, s: 1 }));
+
+  // 5 stones in random slots; one is special but looks normal until picked up
+  const slots = boxes.map(b => ({ box: b })).concat(spotSlots.map(p => ({ spot: p })));
+  slots.sort(() => Math.random() - 0.5);
+  const chosen = slots.slice(0, C.stones);
+  const sp = Math.floor(Math.random() * C.stones);
+  chosen.forEach((s, i) => {
+    const special = i === sp;
+    if (s.box) s.box.userData.stone = { special };
+    else { const st = sprite(T.stone, 0.26, ...s.spot); st.userData = { type: 'stone', special }; targets.push(st); }
+  });
+
+  // trees
+  const tree = (x, z, h) => { sprite(Math.random() < 0.5 ? T.tree1 : T.tree2, h, x, 0, z, Math.random() < 0.5); obst.push({ x, z, r: 0.45 }); };
+  for (let i = 0, n = 0; n < 10 && i < 200; i++) {
+    const x = rand(-16, 16), z = rand(1.5, 7.5);
+    if (Math.abs(x) < 4 || !free(x, z, 2.5)) continue; tree(x, z, rand(4.5, 7)); n++;
+  }
+  for (let i = 0; i < 6; i++) tree(rand(-20, 20), rand(9, 14), rand(5, 8));
+  for (let i = 0, n = 0; n < 28 && i < 400; i++) {
+    const x = rand(-28, 28), z = rand(-26, -52);
+    if ((Math.abs(x) < 3.5 && z > -30) || !free(x, z, 2.2)) continue; tree(x, z, rand(5, 8.5)); n++;
+  }
+  // fallen leaves on the ground (grass leaves a small gap around them)
+  const groundLeaves = [];
+  for (let i = 0; groundLeaves.length < C.groundLeaves && i < 600; i++) {
+    const x = rand(-15, 15), z = Math.random() < 0.4 ? rand(0.6, 7) : rand(-25, -40);
+    if (Math.abs(x) < 1.8 || !free(x, z, 1.0) || groundLeaves.some(g => Math.hypot(g[0] - x, g[1] - z) < 2)) continue;
+    groundLeaves.push([x, z]);
+  }
+  // ground cover: a carpet of plants on both banks (instanced, turned to face the player)
+  const types = [T.plant1, T.plant2, T.plant3], spots = [[], [], []];
+  const clear = (x, z) => obst.every(o => Math.hypot(o.x - x, o.z - z) > (o.s ? 0.3 : o.r + 0.55)) && groundLeaves.every(g => Math.hypot(g[0] - x, g[1] - z) > 0.35);
+  const addG = (x, z, h) => { if (Math.abs(x) < 1.5 || !clear(x, z)) return; spots[Math.floor(Math.random() * 3)].push([x, z, h, Math.random() < 0.5 ? -1 : 1]); };
+  for (let x = -19; x <= 19; x += 1.0) {
+    for (let z = 0.3; z <= 8; z += 1.0) addG(x + rand(-0.45, 0.45), z + rand(-0.3, 0.45), rand(0.35, 0.8));
+    for (let z = -24.4; z >= -44; z -= 1.0) addG(x + rand(-0.45, 0.45), z + rand(-0.45, 0.3), rand(0.35, 0.85));
+    addG(x + rand(0, 0.5), rand(0.12, 0.3), rand(0.4, 0.7));
+    addG(x + rand(0, 0.5), rand(-24.3, -24.12), rand(0.4, 0.7));
+  }
+  spotSlots.filter(p => p[1] === 0).forEach(p => { for (let k = 0; k < 5; k++) { const ang = k / 5 * Math.PI * 2 + rand(0, 1); addG(p[0] + Math.cos(ang) * rand(0.35, 0.6), p[2] + Math.sin(ang) * rand(0.35, 0.6), rand(0.4, 0.7)); } });
+  const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, 0.5, 0);
+  types.forEach((tex, i) => {
+    const list = spots[i]; if (!list.length) return;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide });
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    mesh.userData.list = list; mesh.userData.aspect = tex.image.width / tex.image.height;
+    scene.add(mesh); grass.push(mesh);
+  });
+  placeGrass();
+  // 20 eucalyptus leaves: 4 in the climbing tree, 16 on low branches
+  const leafAt = (x, y, z, ground) => {
+    const l = ground ? sprite(T['leaf-icon'], 0.17, x, y, z, Math.random() < 0.5) : sprite(T['leaf-tree'], 0.42, x, y, z, Math.random() < 0.5);
+    l.userData = { type: 'leaf', by: y, ph: rand(0, 6), amp: ground ? 0 : 0.05 }; targets.push(l); leafSprites.push(l);
+  };
+  [[-3.8, 4.2, 1.8], [-1.9, 4.5, 1.9], [-3.1, 4.9, 1.9], [-2.4, 4.15, 2.0]].forEach(p => leafAt(...p));
+  const trunks = obst.filter(o => o.r === 0.45 && o.z !== 4.5 && !(o.z > 8) && Math.abs(o.z) > 0 && !boxSlots.some(b => b[0] === o.x)).sort(() => Math.random() - 0.5);
+  groundLeaves.forEach(([x, z]) => leafAt(x, 0.02, z, true));
+  for (let i = 0, n = 0; n < C.treeLeaves && i < trunks.length * 2; i++) {
+    const t = trunks[i % trunks.length]; if (t.z < -44) continue;
+    leafAt(t.x + rand(-0.9, 0.9), rand(1.1, 1.9), t.z + 0.45); n++;
+  }
+  // drifting fog puffs, thickest over the bridge
+  for (let i = 0; i < 22; i++) {
+    const overBridge = i < 14;
+    const f = sprite(T['fog-light'], rand(2.5, 4), rand(-8, 8), rand(-0.2, 1), overBridge ? rand(-2, -22) : rand(-26, 6), false, { at: 0, dw: false });
+    f.userData = { v: rand(0.15, 0.45) }; fogs.push(f);
+  }
+  $('go').disabled = false; $('go').textContent = 'Start';
+  renderer.setAnimationLoop(loop);
+}
+mgr.onLoad = build;
+
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+let lastYaw = null;
+function placeGrass() {
+  if (lastYaw === P.yaw) return; lastYaw = P.yaw;
+  _q.setFromAxisAngle(UP, P.yaw);
+  grass.forEach(mesh => {
+    const a = mesh.userData.aspect;
+    mesh.userData.list.forEach(([x, z, h, f], i) => { _p.set(x, 0, z); _s.set(h * a * f, h, 1); _m.compose(_p, _q, _s); mesh.setMatrixAt(i, _m); });
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+}
+function walkable(x, z) {
+  if (Math.abs(x) > 17 || z > 7.5 || z < -43) return false;
+  if (z >= 0 || z <= -24) return true;
+  return Math.abs(x) < 1.0;
+}
+function blocked(x, z) { return obst.some(o => Math.hypot(o.x - x, o.z - z) < o.r); }
+
+function hint(t, sec = 1.8) { $('hint').textContent = t; $('hint').style.opacity = 1; hintTimer = sec; }
+
+const ray = new THREE.Raycaster();
+function interact(nx, ny) {
+  ray.setFromCamera({ x: nx, y: ny }, camera);
+  const hits = ray.intersectObjects(targets.filter(o => o.visible));
+  if (!hits.length) return;
+  const o = hits[0].object;
+  const c = o.position.clone(); c.y += o.scale.y / 2;
+  const d = o.userData.type === 'tree' ? Math.hypot(P.x - TREE.x, P.z - TREE.z) : camera.position.distanceTo(c);
+  if (d > C.reach) { hint('Too far, walk closer'); return; }
+  const u = o.userData;
+  if (u.type === 'leaf') { o.visible = false; leaves++; hint('+1 leaf'); }
+  else if (u.type === 'stone') { o.visible = false; collect(u.special); }
+  else if (u.type === 'tree') climb();
+  else if (u.type === 'box' && !u.open) {
+    u.open = true; o.material.map = T['box-open'];
+    const img = T['box-open'].image; o.scale.x = o.scale.y * img.width / img.height;
+    if (u.stone) {
+      const s = sprite(T.stone, 0.26, o.position.x, o.position.y + 0.5, o.position.z);
+      let t = 0; const id = setInterval(() => { t += 0.05; s.position.y += 0.03; if (t >= 0.6) { clearInterval(id); scene.remove(s); collect(u.stone.special); } }, 50);
+    } else hint('Empty box');
+  }
+}
+function collect(special) {
+  stones++; $('st').textContent = stones;
+  if (stones >= C.stones) winPending = true;
+  if (special) { open('memory'); }
+  else {
+    $('reveal').classList.add('on'); $('reveal').querySelector('span').textContent = 'Just an ordinary stone (' + stones + ' / 5)';
+    clearTimeout(collect.t); collect.t = setTimeout(() => $('reveal').classList.remove('on'), 1600);
+    if (winPending) setTimeout(() => open('win'), 1700);
+  }
+}
+function open(id) { paused = true; $(id).classList.add('on'); }
+function close(id) {
+  $(id).classList.remove('on'); paused = false;
+  if (id === 'memory' && winPending) open('win');
+}
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => close(b.closest('.modal').id));
+$('go').onclick = () => close('start');
+$('avatar').onclick = () => open('panel');
+$('again').onclick = () => location.reload();
+
+function climb() {
+  if (paused) return;
+  if (P.mode === 'walk') {
+    const d = Math.hypot(P.x - TREE.x, P.z - TREE.z);
+    if (d > 2.4) { hint('Walk up to the tree by the bridge first'); return; }
+    P.mode = 'up'; P.anim = 0; P.from = { x: P.x, z: P.z };
+    P.to = { x: TREE.x + (P.x - TREE.x) / d * 0.7, z: TREE.z + (P.z - TREE.z) / d * 0.7 };
+  } else if (P.mode === 'top') { P.mode = 'down'; P.anim = 0; }
+}
+function eat() {
+  if (paused || P.stun > 0) return;
+  if (leaves <= 0) { hint('No leaves left! Pick some from the trees'); return; }
+  leaves--; P.stun = C.stun; P.gain = C.leafGain; hint('Munch… (dizzy for 1 s)', 1.2);
+}
+
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  if (e.repeat) return;
+  keys[e.code] = true;
+  if (e.code === 'Space') climb();
+  if (e.code === 'KeyW') eat();
+  if (e.code === 'ArrowDown' && P.mode === 'top') climb();
+});
+addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.querySelectorAll('#pad button').forEach(b => {
+  b.onpointerdown = e => { e.preventDefault(); keys[b.dataset.k] = true; if (b.dataset.k === 'ArrowDown' && P.mode === 'top') climb(); };
+  b.onpointerup = b.onpointerleave = () => keys[b.dataset.k] = false;
+});
+$('bEat').onclick = eat; $('bClimb').onclick = climb;
+
+// drag to look, tap/click to interact
+const cv = renderer.domElement; let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+  if (drag.moved) { P.yaw -= dx * 0.004; P.pitch = Math.max(-0.7, Math.min(0.7, P.pitch - dy * 0.003)); drag.x = e.clientX; drag.y = e.clientY; }
+});
+cv.addEventListener('pointerup', e => {
+  if (drag && !drag.moved && !paused) interact(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  drag = null;
+});
+
+const clock = new THREE.Clock();
+const ease = t => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (!paused) update(dt);
+  camera.position.set(P.x, P.y, P.z);
+  camera.rotation.y = P.yaw; camera.rotation.x = P.pitch;
+  placeGrass();
+  renderer.render(scene, camera);
+}
+function update(dt) {
+  const t = clock.elapsedTime;
+  // hunger & sleepiness
+  hunger = Math.max(0, hunger - dt);
+  if (P.stun > 0) { P.stun -= dt; if (P.stun <= 0) { hunger = Math.min(C.hungerMax, hunger + P.gain); P.walkT = 0; } }
+  if (P.closeT > 0) P.closeT -= dt;
+  const turn = (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0);
+  P.yaw += turn * C.turn * dt;
+  let moving = false;
+  if (P.mode === 'walk' && P.stun <= 0 && P.closeT <= 0) {
+    const f = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
+    if (f) {
+      const nx = P.x - Math.sin(P.yaw) * f * C.speed * dt, nz = P.z - Math.cos(P.yaw) * f * C.speed * dt;
+      if (walkable(nx, nz) && !blocked(nx, nz)) { P.x = nx; P.z = nz; moving = true; }
+      else if (walkable(nx, P.z) && !blocked(nx, P.z)) { P.x = nx; moving = true; }
+      else if (walkable(P.x, nz) && !blocked(P.x, nz)) { P.z = nz; moving = true; }
+    }
+    if (hunger <= 0 && moving) { P.walkT += dt; if (P.walkT >= C.sleepyWalk) { P.walkT = 0; P.closeT = C.sleepyClose; } }
+  }
+  // climbing
+  if (P.mode === 'up' || P.mode === 'down') {
+    P.anim = Math.min(1, P.anim + dt / C.climbTime);
+    const k = ease(P.mode === 'up' ? P.anim : 1 - P.anim);
+    P.x = P.from.x + (P.to.x - P.from.x) * k; P.z = P.from.z + (P.to.z - P.from.z) * k;
+    P.y = C.eye + C.climbHeight * k;
+    if (P.anim >= 1) P.mode = P.mode === 'up' ? 'top' : 'walk';
+  }
+  // fog: thickest on the bridge
+  const onBridge = Math.abs(P.x) < 1.3 && P.z < -0.3 && P.z > -23.7;
+  const target = onBridge ? 1 : P.mode === 'top' ? 0.15 : 0.32;
+  fogLevel += (target - fogLevel) * Math.min(1, dt * 1.5);
+  scene.fog.near = 7 - 5.5 * fogLevel; scene.fog.far = 40 - 24 * fogLevel;
+  $('fog').style.opacity = 0.12 + 0.55 * fogLevel;
+  fogs.forEach(f => { f.position.x += f.userData.v * dt; if (f.position.x > 10) f.position.x = -10; });
+  leafSprites.forEach(l => { l.position.y = l.userData.by + Math.sin(t * 1.5 + l.userData.ph) * l.userData.amp; });
+  water.material.map.offset.x = t * 0.01;
+  // HUD
+  $('hu').style.width = (hunger / C.hungerMax * 100) + '%';
+  $('lv').textContent = leaves;
+  $('game').classList.toggle('stun', P.stun > 0);
+  const lid = P.closeT > 0 ? Math.sin(Math.min(1, (C.sleepyClose - P.closeT) / C.sleepyClose) * Math.PI) * 50 : 0;
+  $('lidT').style.height = $('lidB').style.height = lid + '%';
+  if (moving) P.phase += dt * 9;
+  const bob = moving ? Math.sin(P.phase) * 8 : 0;
+  $('paws').style.transform = P.stun > 0 ? 'translateY(-6%) scale(1.04)' : `translateY(${bob}px)`;
+  // hints
+  if (hintTimer > 0) { hintTimer -= dt; if (hintTimer <= 0) $('hint').style.opacity = 0; }
+  else {
+    let h = '';
+    if (P.mode === 'top') h = 'Up in the tree · ↓ or Space to climb down';
+    else if (P.mode === 'walk' && Math.hypot(P.x - TREE.x, P.z - TREE.z) < 2.4) h = 'Space or click the tree to climb';
+    else if (hunger <= 0) h = 'Sleepy! Press W to eat a leaf';
+    else if (hunger < 8) h = 'Getting hungry… W to eat a leaf';
+    $('hint').textContent = h; $('hint').style.opacity = h ? 1 : 0;
+  }
+}
+}
+</script>
+</body>
+</html>
